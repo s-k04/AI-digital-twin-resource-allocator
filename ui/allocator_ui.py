@@ -1,7 +1,7 @@
 """
-Thermal-Aware Resource Allocation UI page.
+Resource Allocation UI page.
 Submit compute tasks, compare traditional static allocation vs ML-guided predictive allocation,
-and observe core load and thermal distribution in real-time.
+and observe core load distribution in real-time.
 """
 import streamlit as st
 import plotly.graph_objects as go
@@ -37,11 +37,10 @@ def _core_diagram(core_load: list, title: str, default_color: str = "#D5B893"):
     """Render multi-core load bars styled with the scientific palette."""
     fig = go.Figure()
     for i, load in enumerate(core_load):
-        # Color coding: Nominal (Tan/Slate), Elevated (Coffee), Critical (Caput Mortuum)
         if load >= 85:
-            bar_color = "#632024"  # Caput Mortuum (thermal throttling / saturation hazard)
+            bar_color = "#632024"  # Caput Mortuum (High load)
         elif load >= 70:
-            bar_color = "#6F4D38"  # Coffee (elevated core stress)
+            bar_color = "#6F4D38"  # Coffee (Elevated load)
         else:
             bar_color = default_color  # Tan or Slate Gray
 
@@ -56,10 +55,9 @@ def _core_diagram(core_load: list, title: str, default_color: str = "#D5B893"):
             textfont=dict(color="#F4EFEB", family="JetBrains Mono", size=10),
         ))
 
-    # Reference threshold lines
     fig.add_hline(
         y=85, line_dash="dash", line_color="#632024", opacity=0.7,
-        annotation_text="85% Throttling Cap", annotation_font_color="#E8B4B8",
+        annotation_text="85% Threshold", annotation_font_color="#E8B4B8",
         annotation_font_family="JetBrains Mono", annotation_font_size=9
     )
 
@@ -106,46 +104,44 @@ def render():
     snap = get_full_snapshot()
     cpu_now = snap["cpu"]["overall_percent"]
     ram_now = snap["ram"]["percent"]
-    thermal_data = snap.get("thermal", {})
     predictor.add_sample(cpu_now, ram_now, len(snap["processes"]))
 
     pred = predictor.predict() if predictor.trained else None
     pred_cpu = pred["cpu_predicted"] if pred else cpu_now
     pred_ram = pred["ram_predicted"] if pred else ram_now
 
-    st.markdown("## ⚙️ Thermal-Aware Predictive Allocator")
+    st.markdown("## ⚙️ Intelligent Resource Allocator")
     st.markdown(
         "<p style='color:#9FB0C2;font-size:0.92rem;margin-top:-6px;margin-bottom:18px;'>"
-        "Benchmark <b>traditional static-threshold</b> provisioning against <b>ML-guided thermal & headroom-aware</b> allocation. "
-        "Intelligently dispatches compute tasks to cooler cores, minimizing thermal throttling and task rejections."
+        "Compare <b>traditional static-threshold</b> allocation against <b>ML-guided predictive</b> allocation. "
+        "Submit tasks and watch the core assignments in real time."
         "</p>",
         unsafe_allow_html=True
     )
 
     # ── Live Telemetry Cards ──────────────────────────────────────────────────
-    lc1, lc2, lc3, lc4 = st.columns(4)
-    lc1.metric("Host CPU Load", f"{cpu_now:.1f}%")
-    lc2.metric("Package Thermal", f"{thermal_data.get('package_temp_c', 42.0):.1f}°C")
-    lc3.metric("RAM Allocation", f"{ram_now:.1f}%")
-    lc4.metric("Predicted Next CPU", f"{pred_cpu:.1f}%" if pred else "Model Untrained")
+    lc1, lc2, lc3 = st.columns(3)
+    lc1.metric("Live CPU", f"{cpu_now:.1f}%")
+    lc2.metric("Live RAM", f"{ram_now:.1f}%")
+    lc3.metric("Predicted CPU (next)", f"{pred_cpu:.1f}%" if pred else "N/A — train model first")
 
     st.markdown("<hr style='border-color:rgba(97,120,145,0.3);margin:14px 0;'>", unsafe_allow_html=True)
 
     # ── Task Submission Console ───────────────────────────────────────────────
-    st.markdown("### 📥 Compute Task Dispatch Console")
+    st.markdown("### 📥 Submit Task")
     with st.form("task_form"):
         fc1, fc2, fc3, fc4 = st.columns(4)
-        t_name = fc1.text_input("Task Identifier", value="ML Inference Worker", key="task_name_inp")
-        t_cpu = fc2.slider("Required CPU Capacity (%)", 1, 80, 20, key="task_cpu")
-        t_ram = fc3.slider("Memory Allocation (GB)", 0.1, 8.0, 1.0, step=0.1, key="task_ram")
-        t_dur = fc4.slider("Execution Duration (s)", 1, 60, 10, key="task_dur")
-        t_pri = st.slider("Dispatch Priority Level (1=Highest, 10=Lowest)", 1, 10, 5, key="task_prio")
+        t_name = fc1.text_input("Task Name", value="ML Inference", key="task_name_inp")
+        t_cpu = fc2.slider("CPU Required (%)", 1, 80, 20, key="task_cpu")
+        t_ram = fc3.slider("RAM Required (GB)", 0.1, 8.0, 1.0, step=0.1, key="task_ram")
+        t_dur = fc4.slider("Duration (s)", 1, 60, 10, key="task_dur")
+        t_pri = st.slider("Priority (1=High, 10=Low)", 1, 10, 5, key="task_prio")
 
         col_b1, col_b2 = st.columns(2)
         with col_b1:
-            submitted = st.form_submit_button("🚀 Dispatch Task", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("🚀 Submit Task", type="primary", use_container_width=True)
         with col_b2:
-            auto_submit = st.form_submit_button("🎲 Inject Batch of 10 Random Tasks", use_container_width=True)
+            auto_submit = st.form_submit_button("🎲 Submit 10 Random Tasks", use_container_width=True)
 
     if submitted:
         t_ml = alloc_ml.submit_task(t_name, t_cpu, t_ram, t_dur, t_pri)
@@ -155,12 +151,11 @@ def render():
         alloc_ml.release_finished_tasks()
         alloc_trad.release_finished_tasks()
         st.session_state.alloc_log.append({
-            "Timestamp": datetime.now().strftime("%H:%M:%S"),
-            "Task": t_name, "CPU %": t_cpu, "RAM GB": t_ram, "Duration": f"{t_dur}s",
-            "ML Policy Decision": t_ml.status, "Traditional Decision": t_tr.status,
-            "Target Cores": str(t_ml.assigned_cores) if t_ml.assigned_cores else "None",
+            "Task": t_name, "CPU %": t_cpu, "RAM GB": t_ram, "Duration": t_dur,
+            "ML Decision": t_ml.status, "Trad Decision": t_tr.status,
+            "ML Cores": str(t_ml.assigned_cores),
         })
-        st.success(f"Task '{t_name}' dispatched! ML Decision: {t_ml.status} | Traditional Policy: {t_tr.status}")
+        st.success(f"Task '{t_name}' submitted!  ML: {t_ml.status} | Traditional: {t_tr.status}")
 
     if auto_submit:
         tasks = generate_random_tasks(10, seed=int(time.time()) % 1000)
@@ -173,49 +168,49 @@ def render():
             alloc_trad.allocate_next_task("traditional")
         alloc_ml.release_finished_tasks()
         alloc_trad.release_finished_tasks()
-        st.success("Batch of 10 tasks processed across both allocation engines!")
+        st.success("10 random tasks submitted and allocated!")
         st.rerun()
 
     # ── Multi-Core Distribution Diagrams ──────────────────────────────────────
-    st.markdown("### 🔧 Multi-Core Load & Thermal Balance")
+    st.markdown("### 🔧 Core Load Distribution")
     cd1, cd2 = st.columns(2)
     with cd1:
         st.plotly_chart(
-            _core_diagram(alloc_trad.core_load, "Traditional Allocator — Core Stress", "#617891"),
+            _core_diagram(alloc_trad.core_load, "Traditional Allocator — Core Load", "#617891"),
             use_container_width=True, key="core_trad"
         )
     with cd2:
         st.plotly_chart(
-            _core_diagram(alloc_ml.core_load, "ML-Guided Predictive Allocator — Core Stress", "#D5B893"),
+            _core_diagram(alloc_ml.core_load, "ML-Guided Allocator — Core Load", "#D5B893"),
             use_container_width=True, key="core_ml"
         )
 
     # ── Comparative Statistics Panels ─────────────────────────────────────────
-    st.markdown("### 📊 Policy Performance Comparative Metrics")
+    st.markdown("### 📊 Allocation Statistics Comparison")
     stats_trad = alloc_trad.get_stats()
     stats_ml = alloc_ml.get_stats()
     sc1, sc2 = st.columns(2)
     with sc1:
         st.markdown(
-            _stats_card("🔵 Traditional Static Policy", {
-                "Total Tasks Ingested": stats_trad["total_submitted"],
-                "Successfully Completed": stats_trad["completed"],
-                "Rejected / Throttled": stats_trad["rejected"],
-                "Mean Queue Wait Time": f"{stats_trad['avg_wait_time_s']}s",
-                "Cluster CPU Utilization": f"{stats_trad['cpu_utilization_pct']}%",
-                "Committed Memory": f"{stats_trad['ram_used_gb']} GB",
+            _stats_card("🔵 Traditional Allocator", {
+                "Total Submitted": stats_trad["total_submitted"],
+                "Completed": stats_trad["completed"],
+                "Rejected": stats_trad["rejected"],
+                "Avg Wait Time": f"{stats_trad['avg_wait_time_s']}s",
+                "CPU Utilization": f"{stats_trad['cpu_utilization_pct']}%",
+                "RAM Used": f"{stats_trad['ram_used_gb']} GB",
             }, "#617891"),
             unsafe_allow_html=True,
         )
     with sc2:
         st.markdown(
-            _stats_card("🟢 ML Predictive Provisioning", {
-                "Total Tasks Ingested": stats_ml["total_submitted"],
-                "Successfully Completed": stats_ml["completed"],
-                "Rejected / Throttled": stats_ml["rejected"],
-                "Mean Queue Wait Time": f"{stats_ml['avg_wait_time_s']}s",
-                "Cluster CPU Utilization": f"{stats_ml['cpu_utilization_pct']}%",
-                "Committed Memory": f"{stats_ml['ram_used_gb']} GB",
+            _stats_card("🟢 ML-Guided Allocator", {
+                "Total Submitted": stats_ml["total_submitted"],
+                "Completed": stats_ml["completed"],
+                "Rejected": stats_ml["rejected"],
+                "Avg Wait Time": f"{stats_ml['avg_wait_time_s']}s",
+                "CPU Utilization": f"{stats_ml['cpu_utilization_pct']}%",
+                "RAM Used": f"{stats_ml['ram_used_gb']} GB",
             }, "#D5B893"),
             unsafe_allow_html=True,
         )
@@ -229,24 +224,24 @@ def render():
             f'<div style="background:rgba(213, 184, 147, 0.15);border:1px solid rgba(213, 184, 147, 0.4);'
             f'border-left:4px solid #D5B893;padding:12px 16px;border-radius:6px;margin:12px 0;">'
             f'<span style="font-family:\'Playfair Display\',serif;font-weight:700;color:#D5B893;">'
-            f'Headroom Optimization:</span> '
-            f'<span style="color:#F4EFEB;">ML-Guided predictive allocation mitigated task rejections by '
-            f'<b style="color:#D5B893;">{impr}%</b> versus traditional threshold gating '
-            f'({trad_rej} rejected vs {ml_rej} under predictive).</span>'
+            f'🚀 ML-Guided Allocator:</span> '
+            f'<span style="color:#F4EFEB;">Reduced task rejections by '
+            f'<b style="color:#D5B893;">{impr}%</b> vs Traditional '
+            f'({trad_rej} vs {ml_rej} rejected).</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
 
     # ── Decision Telemetry Audit Log ──────────────────────────────────────────
     if st.session_state.alloc_log:
-        st.markdown("### 📋 Dispatch Decision Audit Log")
+        st.markdown("### 📋 Allocation Decision Log")
         df_log = pd.DataFrame(st.session_state.alloc_log)
         st.dataframe(df_log, use_container_width=True, hide_index=True)
 
     # Reset Allocators
     col_rst, _ = st.columns([1, 3])
     with col_rst:
-        if st.button("🔄 Reset Allocation State", key="reset_alloc"):
+        if st.button("🔄 Reset Allocators", key="reset_alloc"):
             alloc_ml.reset()
             alloc_trad.reset()
             st.session_state.alloc_log = []
@@ -254,7 +249,7 @@ def render():
 
     # Completed tasks table
     if alloc_ml.completed_tasks:
-        st.markdown("### ✅ Task Execution Telemetry (ML Allocator)")
+        st.markdown("### ✅ Completed Tasks (ML Allocator)")
         rows = [t.to_dict() for t in alloc_ml.completed_tasks[-20:]]
         df_done = pd.DataFrame(rows)
         st.dataframe(df_done, use_container_width=True, hide_index=True)

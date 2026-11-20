@@ -1,6 +1,6 @@
 """
-Live System & Thermal Monitoring Dashboard page.
-Real-time multi-core CPU, RAM, thermodynamic telemetry, and Digital Twin synchronization.
+Live System Monitoring Dashboard page.
+Real-time CPU, RAM, Disk, and process tracking with Digital Twin synchronization.
 """
 import streamlit as st
 import plotly.graph_objects as go
@@ -24,8 +24,6 @@ def _init_state():
         st.session_state.cpu_history = []
     if "ram_history" not in st.session_state:
         st.session_state.ram_history = []
-    if "thermal_history" not in st.session_state:
-        st.session_state.thermal_history = []
     if "time_history" not in st.session_state:
         st.session_state.time_history = []
     if "twin" not in st.session_state:
@@ -68,8 +66,8 @@ def _make_scientific_gauge(value, title, color, suffix="%", max_val=100, thresho
     return fig
 
 
-def _make_core_heatmap(per_core: list, core_temps: list = None):
-    """Render CPU core load and thermal distribution heatmap."""
+def _make_core_heatmap(per_core: list):
+    """Render CPU core load distribution heatmap."""
     n = len(per_core)
     cols = min(n, 8)
     rows = (n + cols - 1) // cols
@@ -80,8 +78,7 @@ def _make_core_heatmap(per_core: list, core_temps: list = None):
 
     for i, v in enumerate(per_core):
         row_z.append(round(v, 1))
-        temp_str = f" · {core_temps[i]:.0f}°C" if core_temps and i < len(core_temps) else ""
-        row_t.append(f"C{i}<br>{v:.0f}%{temp_str}")
+        row_t.append(f"C{i}<br>{v:.0f}%")
         if len(row_z) == cols:
             z.append(row_z)
             text_grid.append(row_t)
@@ -99,7 +96,7 @@ def _make_core_heatmap(per_core: list, core_temps: list = None):
         [0.55, "#617891"],  # Slate Gray
         [0.75, "#D5B893"],  # Tan
         [0.88, "#6F4D38"],  # Coffee
-        [1.0, "#632024"],   # Caput Mortuum (Thermal Peak)
+        [1.0, "#632024"],   # Caput Mortuum (Peak load)
     ]
 
     fig = go.Figure(go.Heatmap(
@@ -128,14 +125,13 @@ def _make_core_heatmap(per_core: list, core_temps: list = None):
     return fig
 
 
-def _make_time_chart(time_hist, cpu_hist, ram_hist, twin_hist, thermal_hist=None):
+def _make_time_chart(time_hist, cpu_hist, ram_hist, twin_hist):
     """Render animated multi-metric time series chart."""
     fig = go.Figure()
     ts = time_hist[-HISTORY_LEN:]
     cpu = cpu_hist[-HISTORY_LEN:]
     ram = ram_hist[-HISTORY_LEN:]
     twin = twin_hist[-HISTORY_LEN:] if twin_hist else []
-    thermal = thermal_hist[-HISTORY_LEN:] if thermal_hist else []
 
     # CPU load: Tan accent
     fig.add_trace(go.Scatter(
@@ -145,7 +141,7 @@ def _make_time_chart(time_hist, cpu_hist, ram_hist, twin_hist, thermal_hist=None
     ))
     # RAM allocation: Slate Gray accent
     fig.add_trace(go.Scatter(
-        x=ts, y=ram, name="RAM Alloc (%)",
+        x=ts, y=ram, name="RAM (%)",
         line=dict(color="#617891", width=2),
         fill="tozeroy", fillcolor="rgba(97, 120, 145, 0.12)"
     ))
@@ -155,17 +151,11 @@ def _make_time_chart(time_hist, cpu_hist, ram_hist, twin_hist, thermal_hist=None
             x=ts, y=twin, name="Twin CPU (%)",
             line=dict(color="#6F4D38", width=1.8, dash="dot"),
         ))
-    # Thermal profile: Caput Mortuum
-    if thermal:
-        fig.add_trace(go.Scatter(
-            x=ts, y=thermal, name="Pkg Temp (°C)",
-            line=dict(color="#632024", width=1.8, dash="dash"),
-        ))
 
-    # Critical thermal/load threshold in Caput Mortuum
+    # Critical threshold line in Caput Mortuum
     fig.add_hline(
         y=85, line_dash="dash", line_color="#632024", opacity=0.8,
-        annotation_text="Critical State 85%", annotation_font_color="#E8B4B8",
+        annotation_text="Warning 85%", annotation_font_color="#E8B4B8",
         annotation_font_family="JetBrains Mono"
     )
 
@@ -194,24 +184,24 @@ def _make_time_chart(time_hist, cpu_hist, ram_hist, twin_hist, thermal_hist=None
 
 def render():
     _init_state()
-    st.markdown("## 🌡️ Live System & Thermal Monitor")
+    st.markdown("## 🖥️ Live System Monitor")
     st.markdown(
         "<p style='color:#9FB0C2;font-size:0.92rem;margin-top:-6px;margin-bottom:18px;'>"
-        "Real-time multi-core computing metrics, thermodynamic profile, and AI Digital Twin synchronization state."
+        "Real-time CPU, RAM, Disk and process tracking with Digital Twin synchronization."
         "</p>",
         unsafe_allow_html=True
     )
 
     info = st.session_state.sys_info
 
-    # ── System Specification Expander ─────────────────────────────────────────
-    with st.expander("🔬 System Architecture & Processor Telemetry", expanded=False):
+    # ── System Info Expander ──────────────────────────────────────────────────
+    with st.expander("ℹ️ System Architecture Info", expanded=False):
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Physical Cores", info["cpu_physical_cores"])
         c2.metric("Logical Cores", info["cpu_logical_cores"])
-        c3.metric("Installed RAM", f"{info['total_ram_gb']} GB")
-        c4.metric("Peak Frequency", f"{info['cpu_max_freq_mhz']} MHz" if info['cpu_max_freq_mhz'] else "Dynamic")
-        st.caption(f"OS: {info['system']} · Node: {info['node']} · Architecture: {info['processor']} · Python: {info['python_version']}")
+        c3.metric("Total RAM", f"{info['total_ram_gb']} GB")
+        c4.metric("Max CPU Freq", f"{info['cpu_max_freq_mhz']} MHz" if info['cpu_max_freq_mhz'] else "Dynamic")
+        st.caption(f"OS: {info['system']} · Host: {info['node']} · Architecture: {info['processor']} · Python: {info['python_version']}")
 
     # ── Real-Time Snapshot ────────────────────────────────────────────────────
     snap = get_full_snapshot()
@@ -220,14 +210,11 @@ def render():
     disk_data = snap["disk"]
     net_data = snap["network"]
     procs = snap["processes"]
-    thermal_data = snap.get("thermal", {})
 
     # Update state histories
     st.session_state.cpu_history.append(cpu_data["overall_percent"])
     st.session_state.ram_history.append(ram_data["percent"])
     st.session_state.time_history.append(datetime.now())
-    if thermal_data:
-        st.session_state.thermal_history.append(thermal_data.get("package_temp_c", 40.0))
 
     # Update digital twin
     twin: DigitalTwin = st.session_state.twin
@@ -235,40 +222,32 @@ def render():
     twin_hist = [float(np.mean(c)) for c in twin.twin_cpu_history]
 
     # ── Scientific Telemetry Gauges ───────────────────────────────────────────
-    g1, g2, g3, g4 = st.columns(4)
+    g1, g2, g3 = st.columns(3)
     with g1:
         st.plotly_chart(
-            _make_scientific_gauge(cpu_data["overall_percent"], "CPU Compute Load", "#D5B893"),
+            _make_scientific_gauge(cpu_data["overall_percent"], "CPU Usage", "#D5B893"),
             use_container_width=True, key="gauge_cpu"
         )
     with g2:
-        pkg_temp = thermal_data.get("package_temp_c", 42.0)
-        temp_color = thermal_data.get("status_color", "#D5B893")
         st.plotly_chart(
-            _make_scientific_gauge(pkg_temp, "Package Thermal", temp_color, suffix="°C", max_val=105, threshold=82),
-            use_container_width=True, key="gauge_temp"
+            _make_scientific_gauge(ram_data["percent"], "RAM Usage", "#617891"),
+            use_container_width=True, key="gauge_ram"
         )
     with g3:
         st.plotly_chart(
-            _make_scientific_gauge(ram_data["percent"], "RAM Memory Load", "#617891"),
-            use_container_width=True, key="gauge_ram"
-        )
-    with g4:
-        st.plotly_chart(
-            _make_scientific_gauge(disk_data["percent"], "Disk Utilization", "#6F4D38"),
+            _make_scientific_gauge(disk_data["percent"], "Disk Usage", "#6F4D38"),
             use_container_width=True, key="gauge_disk"
         )
 
     # ── Multi-Core Heatmap ────────────────────────────────────────────────────
-    st.markdown("#### 🔥 CPU Multi-Core Load & Thermal Distribution")
-    core_temps = thermal_data.get("core_temps_c", [])
+    st.markdown("#### 🔥 CPU Core Load Heatmap")
     st.plotly_chart(
-        _make_core_heatmap(cpu_data["per_core_percent"], core_temps),
+        _make_core_heatmap(cpu_data["per_core_percent"]),
         use_container_width=True, key="core_heatmap"
     )
 
     # ── Time Series Telemetry ─────────────────────────────────────────────────
-    st.markdown("#### 📈 Multi-Variable Telemetry Time Series")
+    st.markdown("#### 📈 CPU & RAM Over Time")
     if len(st.session_state.time_history) > 1:
         st.plotly_chart(
             _make_time_chart(
@@ -276,65 +255,61 @@ def render():
                 st.session_state.cpu_history,
                 st.session_state.ram_history,
                 twin_hist,
-                st.session_state.thermal_history,
             ),
             use_container_width=True,
             key="time_chart"
         )
     else:
-        st.info("Accumulating system telemetry samples... poll again to visualize time-series curves.")
+        st.info("Collecting data... refresh to see the chart.")
 
     # ── Secondary Telemetry Metrics ───────────────────────────────────────────
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("RAM In-Use", f"{ram_data['used_gb']} GB", f"{ram_data['percent']:.1f}% load")
-    col2.metric("RAM Available", f"{ram_data['available_gb']} GB")
-    col3.metric("Network Outbound", f"{net_data['bytes_sent_mb']} MB")
-    col4.metric("Network Inbound", f"{net_data['bytes_recv_mb']} MB")
+    col1.metric("RAM Used", f"{ram_data['used_gb']} GB", f"{ram_data['percent']:.1f}%")
+    col2.metric("RAM Free", f"{ram_data['available_gb']} GB")
+    col3.metric("Net Sent", f"{net_data['bytes_sent_mb']} MB")
+    col4.metric("Net Recv", f"{net_data['bytes_recv_mb']} MB")
 
-    # ── Digital Twin & Thermal Status Banner ──────────────────────────────────
+    # ── Digital Twin Status Banner ───────────────────────────────────────────
     dev = twin.get_deviation()
-    st.markdown("#### 🌐 Digital Twin & Thermodynamic Health State")
-    tc1, tc2, tc3, tc4 = st.columns(4)
-    tc1.metric("Twin Coherence", f"{dev['health_score']}%",
-               help="Correlation coefficient between digital replica and physical hardware")
+    st.markdown("#### 🌐 Digital Twin Status")
+    tc1, tc2, tc3 = st.columns(3)
+    tc1.metric("Twin Health Score", f"{dev['health_score']}%",
+               help="How closely the twin tracks the real system")
     tc2.metric("CPU Deviation", f"{dev['cpu_deviation']:.2f}%")
     tc3.metric("RAM Deviation", f"{dev['ram_deviation']:.2f}%")
-    tc4.metric("Thermal Headroom", f"{thermal_data.get('thermal_headroom_c', 45.0):.1f}°C",
-               help="Delta margin before thermal throttling threshold is triggered")
 
     health = dev["health_score"]
-    thermal_status = thermal_data.get("thermal_status", "NOMINAL")
-    if thermal_status == "CRITICAL" or health < 60:
+    if health > 80:
+        badge_bg = "rgba(213, 184, 147, 0.15)"
+        badge_border = "#D5B893"
+        badge_color = "#D5B893"
+        desc = "Excellent synchronization with real system."
+    elif health > 60:
+        badge_bg = "rgba(111, 77, 56, 0.22)"
+        badge_border = "#6F4D38"
+        badge_color = "#F2DDD0"
+        desc = "Minor drift detected."
+    else:
         badge_bg = "rgba(99, 32, 36, 0.28)"
         badge_border = "#632024"
         badge_color = "#F8D3D6"
-        badge_text = "THERMAL ALERT / DRIFT: Digital twin observes elevated thermal pressure. Throttling mitigation recommended."
-    elif thermal_status == "ELEVATED" or health < 80:
-        badge_bg = "rgba(111, 77, 56, 0.25)"
-        badge_border = "#6F4D38"
-        badge_color = "#F2DDD0"
-        badge_text = "THERMAL NOTICE: Core dissipation is elevated. Predictive scheduling engaged to distribute thermal hot spots."
-    else:
-        badge_bg = "rgba(97, 120, 145, 0.22)"
-        badge_border = "rgba(213, 184, 147, 0.5)"
-        badge_color = "#D5B893"
-        badge_text = "NOMINAL SYNCHRONIZATION: High fidelity replication between physical multi-core CPU and digital twin model."
+        desc = "High deviation — twin may need recalibration."
 
     st.markdown(
         f'<div style="background:{badge_bg};border:1px solid {badge_border};border-left:4px solid {badge_border};'
         f'padding:12px 16px;border-radius:6px;margin:10px 0 16px;">'
         f'<span style="font-family:\'Playfair Display\',serif;font-weight:700;color:{badge_color};margin-right:8px;">'
-        f'State Evaluation: {thermal_status}</span> · '
-        f'<span style="color:#F4EFEB;font-size:0.88rem;">{badge_text}</span>'
+        f'Twin Health: {health}%</span> · '
+        f'<span style="color:#F4EFEB;font-size:0.88rem;">{desc}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
     # ── Top Process Table ─────────────────────────────────────────────────────
-    st.markdown("#### ⚙️ Top Compute Processes")
+    st.markdown("#### ⚙️ Top Processes")
     if procs:
         df_procs = pd.DataFrame(procs)[["pid", "name", "cpu_percent", "memory_percent", "status", "num_threads"]]
-        df_procs.columns = ["PID", "Process Identifier", "CPU Load (%)", "Memory (%)", "Process State", "Active Threads"]
+        df_procs.columns = ["PID", "Process", "CPU %", "RAM %", "Status", "Threads"]
         df_procs = df_procs.fillna(0).round(2)
         st.dataframe(
             df_procs,
@@ -344,9 +319,9 @@ def render():
 
     # Swap memory notice
     if ram_data.get("swap_total_gb", 0) > 0:
-        st.caption(f"💾 Auxiliary Swap Storage: {ram_data['swap_used_gb']} / {ram_data['swap_total_gb']} GB ({ram_data['swap_percent']}%)")
+        st.caption(f"💾 Swap: {ram_data['swap_used_gb']} / {ram_data['swap_total_gb']} GB ({ram_data['swap_percent']}%)")
 
     # Footer controls
-    st.caption(f"🕐 Telemetry timestamp: {snap['timestamp']}")
-    if st.button("🔄 Poll Hardware Telemetry", key="refresh_monitor"):
+    st.caption(f"🕐 Last updated: {snap['timestamp']}")
+    if st.button("🔄 Refresh Now", key="refresh_monitor"):
         st.rerun()

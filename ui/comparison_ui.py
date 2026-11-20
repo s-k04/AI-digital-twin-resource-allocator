@@ -1,6 +1,6 @@
 """
-Scheduler Comparison & Benchmark UI page.
-Animated Gantt charts, multi-algorithm metrics evaluation, and predictive policy improvement analysis.
+Scheduler Comparison UI page.
+Animated Gantt chart, metrics comparison table, improvement analysis.
 """
 import streamlit as st
 import plotly.graph_objects as go
@@ -35,7 +35,7 @@ def _make_gantt(gantt_data: list, algo_name: str, color: str, num_cores: int = 1
     fig = go.Figure()
 
     for _, row in df.iterrows():
-        core_label = f"Core {row['core']}" if num_cores > 1 else "CPU Core"
+        core_label = f"Core {row['core']}" if num_cores > 1 else "CPU"
         fig.add_trace(go.Bar(
             x=[row["finish"] - row["start"]],
             y=[core_label],
@@ -52,20 +52,20 @@ def _make_gantt(gantt_data: list, algo_name: str, color: str, num_cores: int = 1
             textfont=dict(color="#1D2A40" if color == "#D5B893" else "#F4EFEB", family="JetBrains Mono", size=9),
             hovertemplate=(
                 f"<b>{row['name']}</b><br>"
-                f"Dispatch Time: {row['start']:.2f}s<br>"
-                f"Completion Time: {row['finish']:.2f}s<br>"
-                f"Execution Duration: {row['finish']-row['start']:.2f}s<extra></extra>"
+                f"Start: {row['start']:.2f}s<br>"
+                f"Finish: {row['finish']:.2f}s<br>"
+                f"Duration: {row['finish']-row['start']:.2f}s<extra></extra>"
             ),
             showlegend=False,
         ))
 
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        height=max(150, 60 + num_cores * 42),
+        height=max(140, 50 + num_cores * 40),
         margin=dict(l=10, r=10, t=35, b=10),
-        title=dict(text=f"Gantt Telemetry — {algo_name}", font=dict(color=color, size=13, family="Playfair Display, serif")),
+        title=dict(text=f"Gantt — {algo_name}", font=dict(color=color, size=13, family="Playfair Display, serif")),
         xaxis=dict(
-            title="Time Horizon (seconds)",
+            title="Time (s)",
             showgrid=True, gridcolor="rgba(97, 120, 145, 0.2)",
             tickfont=dict(color="#9FB0C2", family="JetBrains Mono"),
             title_font=dict(color="#D5B893", family="Inter", size=11)
@@ -109,7 +109,7 @@ def _make_comparison_bar(metrics_df: pd.DataFrame, metric: str, title: str, lowe
 
 def _make_radar_chart(metrics_df: pd.DataFrame):
     """Render spider radar comparison across normalized dimensions."""
-    categories = ["Throughput", "CPU Utilization", "Avg Wait (inv)", "Avg Turnaround (inv)", "Makespan (inv)"]
+    categories = ["Throughput", "CPU Util", "Avg Wait (inv)", "Avg Turnaround (inv)", "Makespan (inv)"]
     fig = go.Figure()
 
     normed = metrics_df.copy()
@@ -166,7 +166,7 @@ def _make_radar_chart(metrics_df: pd.DataFrame):
             bgcolor="rgba(29, 42, 64, 0.6)"
         ),
         title=dict(
-            text="Multivariate Algorithm Efficiency Radar",
+            text="Algorithm Performance Radar",
             font=dict(color="#D5B893", size=13, family="Playfair Display, serif")
         ),
     )
@@ -174,38 +174,39 @@ def _make_radar_chart(metrics_df: pd.DataFrame):
 
 
 def render():
-    st.markdown("## 📊 Scheduling Algorithm Benchmark & Analytics")
+    st.markdown("## 📊 Scheduling Algorithm Benchmark")
     st.markdown(
         "<p style='color:#9FB0C2;font-size:0.92rem;margin-top:-6px;margin-bottom:18px;'>"
-        "Rigorous comparative benchmark evaluating <b>FCFS, SJF, Round Robin, Priority</b>, and "
-        "<b>Predictive ML-Guided</b> workload scheduling algorithms with multi-core Gantt charts and efficiency radar telemetry."
+        "Simulate task workloads and compare <b>5 scheduling algorithms</b> — "
+        "FCFS, SJF, Round Robin, Priority, and <b>ML-Guided Predictive</b> — "
+        "with animated Gantt charts and statistical metrics."
         "</p>",
         unsafe_allow_html=True
     )
 
     # ── Simulation Configuration ──────────────────────────────────────────────
-    st.markdown("### ⚙️ Workload Simulation Parameters")
+    st.markdown("### ⚙️ Simulation Settings")
     sc1, sc2, sc3, sc4 = st.columns(4)
     with sc1:
-        n_tasks = st.slider("Simulated Task Queue Size", 5, 30, 15, key="sched_n_tasks")
+        n_tasks = st.slider("Number of Tasks", 5, 30, 15, key="sched_n_tasks")
     with sc2:
-        n_cores = st.slider("Target Execution Cores", 1, 8, 4, key="sched_cores")
+        n_cores = st.slider("Number of CPU Cores", 1, 8, 4, key="sched_cores")
     with sc3:
-        rr_quantum = st.slider("Round Robin Time Slice (s)", 0.5, 5.0, 2.0, step=0.5, key="sched_quantum")
+        rr_quantum = st.slider("Round Robin Quantum (s)", 0.5, 5.0, 2.0, step=0.5, key="sched_quantum")
     with sc4:
-        pred_load = st.slider("Simulated Background Load (%)", 0, 100, 30, key="sched_pred_load")
+        pred_load = st.slider("Predicted System Load (%)", 0, 100, 30, key="sched_pred_load")
 
-    seed = st.number_input("Stochastic Seed (Deterministic Reproducibility)", value=42, min_value=1, max_value=9999, key="sched_seed")
+    seed = st.number_input("Task Generation Seed", value=42, min_value=1, max_value=9999, key="sched_seed")
 
-    run_btn = st.button("▶️ Execute Benchmark Simulation", type="primary", key="run_sched")
+    run_btn = st.button("▶️ Run Simulation", type="primary", key="run_sched")
 
     if run_btn or "sched_results" not in st.session_state:
         tasks = generate_sim_tasks(n_tasks, seed=int(seed))
-        with st.spinner("Executing scheduling algorithms across multi-core simulator..."):
+        with st.spinner("Running all scheduling algorithms..."):
             results = run_all_schedulers(tasks, rr_quantum, n_cores, pred_load)
         st.session_state.sched_results = results
         st.session_state.sched_n_cores = n_cores
-        st.success(f"✅ Simulation synthesized across {n_tasks} tasks and 5 scheduling algorithms.")
+        st.success(f"✅ Simulated {n_tasks} tasks across 5 scheduling algorithms.")
 
     if "sched_results" not in st.session_state:
         return
@@ -214,7 +215,7 @@ def render():
     n_cores_used = st.session_state.get("sched_n_cores", 4)
 
     # ── Metrics Table ─────────────────────────────────────────────────────────
-    st.markdown("### 📋 Empirical Performance Evaluation")
+    st.markdown("### 📋 Performance Metrics Comparison")
     metrics_rows = {}
     for algo, res in results.items():
         if "metrics" in res and res["metrics"]:
@@ -224,12 +225,12 @@ def render():
         metrics_df = pd.DataFrame(metrics_rows).T
         display_df = metrics_df.copy()
         col_rename = {
-            "avg_wait_time": "Mean Wait (s)",
-            "avg_turnaround": "Mean Turnaround (s)",
-            "avg_response_time": "Response Time (s)",
+            "avg_wait_time": "Avg Wait (s)",
+            "avg_turnaround": "Avg Turnaround (s)",
+            "avg_response_time": "Avg Response (s)",
             "throughput": "Throughput (t/s)",
-            "cpu_utilization": "CPU Utilization (%)",
-            "total_tasks": "Task Count",
+            "cpu_utilization": "CPU Util (%)",
+            "total_tasks": "Tasks",
             "makespan": "Makespan (s)",
         }
         display_df.rename(columns=col_rename, inplace=True)
@@ -241,15 +242,15 @@ def render():
 
     # ── Improvement Analysis ──────────────────────────────────────────────────
     if "FCFS" in metrics_rows and "Predictive" in metrics_rows:
-        st.markdown("### 🏆 Predictive vs Classical Baseline — Empirical Improvement")
+        st.markdown("### 🏆 Predictive vs Traditional — Improvement Analysis")
         fcfs_m = metrics_rows["FCFS"]
         pred_m = metrics_rows["Predictive"]
         improvements = []
         for metric, label, lower_better in [
-            ("avg_wait_time", "Mean Queue Wait Time", True),
-            ("avg_turnaround", "Mean Task Turnaround", True),
-            ("cpu_utilization", "Multi-Core Utilization", False),
-            ("throughput", "Throughput Efficiency", False),
+            ("avg_wait_time", "Avg Wait Time", True),
+            ("avg_turnaround", "Avg Turnaround", True),
+            ("cpu_utilization", "CPU Utilization", False),
+            ("throughput", "Throughput", False),
         ]:
             if metric in fcfs_m and metric in pred_m:
                 base = fcfs_m[metric]
@@ -258,11 +259,11 @@ def render():
                     pct = ((base - new) / base * 100) if lower_better else ((new - base) / base * 100)
                     better = pct > 0
                     improvements.append({
-                        "Metric Category": label,
-                        "Classical FCFS Baseline": round(base, 3),
-                        "ML Predictive Engine": round(new, 3),
-                        "Optimization Delta": f"{'↑' if better else '↓'} {abs(pct):.1f}%",
-                        "Outcome Assessment": "Optimal Improvement" if better else "Comparable",
+                        "Metric": label,
+                        "FCFS": round(base, 3),
+                        "Predictive": round(new, 3),
+                        "Improvement %": f"{'↑' if better else '↓'} {abs(pct):.1f}%",
+                        "Result": "✅ Better" if better else "⚠️ Worse",
                     })
         if improvements:
             df_impr = pd.DataFrame(improvements)
@@ -270,36 +271,36 @@ def render():
 
     # ── Comparative Bar Charts ────────────────────────────────────────────────
     if metrics_rows:
-        st.markdown("### 📈 Quantitative Benchmarks")
+        st.markdown("### 📈 Metric Charts")
         bc1, bc2 = st.columns(2)
         with bc1:
             st.plotly_chart(
-                _make_comparison_bar(metrics_df, "avg_wait_time", "Mean Wait Time (s) — Lower is Optimal"),
+                _make_comparison_bar(metrics_df, "avg_wait_time", "Avg Wait Time (s) — Lower is Better"),
                 use_container_width=True, key="bar_wait"
             )
         with bc2:
             st.plotly_chart(
-                _make_comparison_bar(metrics_df, "cpu_utilization", "CPU Utilization (%) — Higher is Optimal", False),
+                _make_comparison_bar(metrics_df, "cpu_utilization", "CPU Utilization (%) — Higher is Better", False),
                 use_container_width=True, key="bar_cpu"
             )
         bc3, bc4 = st.columns(2)
         with bc3:
             st.plotly_chart(
-                _make_comparison_bar(metrics_df, "throughput", "System Throughput (tasks/s) — Higher is Optimal", False),
+                _make_comparison_bar(metrics_df, "throughput", "Throughput (tasks/s) — Higher is Better", False),
                 use_container_width=True, key="bar_throughput"
             )
         with bc4:
             st.plotly_chart(
-                _make_comparison_bar(metrics_df, "makespan", "Total Makespan (s) — Lower is Optimal"),
+                _make_comparison_bar(metrics_df, "makespan", "Makespan (s) — Lower is Better"),
                 use_container_width=True, key="bar_makespan"
             )
 
         # Radar chart
-        st.markdown("### 🕸️ Multi-Attribute Trade-off Radar")
+        st.markdown("### 🕸️ Performance Radar")
         st.plotly_chart(_make_radar_chart(metrics_df), use_container_width=True, key="radar")
 
     # ── Gantt Charts ──────────────────────────────────────────────────────────
-    st.markdown("### 🗓️ Multi-Core Execution Gantt Telemetry")
+    st.markdown("### 🗓️ Gantt Charts")
     for algo, res in results.items():
         gantt = res.get("gantt", [])
         if gantt:
@@ -312,16 +313,16 @@ def render():
             )
 
     # ── Task Details ──────────────────────────────────────────────────────────
-    with st.expander("📋 Detailed Dispatch Schedule (ML-Guided Predictive)", expanded=False):
+    with st.expander("📋 Task Schedule Details (Predictive)", expanded=False):
         pred_res = results.get("Predictive", {})
         pred_tasks = pred_res.get("tasks", [])
         if pred_tasks:
             rows = [{
-                "Task ID": t.task_id, "Designation": t.name, "Priority Rank": t.priority,
+                "ID": t.task_id, "Name": t.name, "Priority": t.priority,
                 "Burst (s)": t.burst_time, "Arrival (s)": t.arrival_time,
-                "Start Time (s)": round(t.start_time, 2) if t.start_time else None,
-                "Finish Time (s)": round(t.finish_time, 2) if t.finish_time else None,
-                "Wait Time (s)": round(t.waiting_time, 2) if t.waiting_time else None,
+                "Start (s)": round(t.start_time, 2) if t.start_time else None,
+                "Finish (s)": round(t.finish_time, 2) if t.finish_time else None,
+                "Wait (s)": round(t.waiting_time, 2) if t.waiting_time else None,
                 "Turnaround (s)": round(t.turnaround_time, 2) if t.turnaround_time else None,
             } for t in pred_tasks]
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)

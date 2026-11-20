@@ -1,5 +1,5 @@
 """
-Predictive Thermal-Aware Resource Allocation Framework
+AI-Driven Digital Twin Framework for Predictive Resource Allocation
 Multi-Core Computing Systems & AI-Driven Digital Twin
 Main Streamlit Application Entry Point
 """
@@ -12,14 +12,14 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Predictive Thermal-Aware Resource Allocation",
-    page_icon="🌡️",
+    page_title="AI Digital Twin | Resource Allocation Framework",
+    page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": None,
         "Report a bug": None,
-        "About": "Predictive Thermal-Aware Resource Allocation in Multi-Core Computing Systems — AI Digital Twin Framework",
+        "About": "AI-Driven Digital Twin Framework for Predictive Resource Allocation in Multi-Core Computing Systems",
     },
 )
 
@@ -35,7 +35,7 @@ st.markdown("""
     --slate-gray:      #617891; /* Cards and panels */
     --tan:             #D5B893; /* Accents and highlights */
     --coffee:          #6F4D38; /* Secondary accents */
-    --caput-mortuum:   #632024; /* Thermal alerts & critical states */
+    --caput-mortuum:   #632024; /* Alerts and critical states */
     
     --bg-deep:         #1D2A40;
     --text-primary:    #F4EFEB;
@@ -332,7 +332,7 @@ def render_sidebar():
                 border:1px solid rgba(213,184,147,0.4);
                 font-size:1.4rem;
                 margin-bottom:8px;
-            ">🌡️</div>
+            ">🧠</div>
             <h1 style="
                 font-family:'Playfair Display', serif !important;
                 font-size:1.15rem !important;
@@ -342,9 +342,9 @@ def render_sidebar():
                 line-height:1.3;
                 border:none !important;
                 padding:0 !important;
-            ">Thermal-Aware<br>Resource Allocation</h1>
+            ">AI Digital Twin<br>Framework</h1>
             <p style="color:#9FB0C2;font-size:0.72rem;margin:6px 0 0;letter-spacing:0.04em;text-transform:uppercase;">
-                AI Digital Twin & Telemetry
+                Predictive Resource Allocation
             </p>
         </div>
         """, unsafe_allow_html=True)
@@ -353,7 +353,7 @@ def render_sidebar():
 
         # Navigation
         pages = {
-            "🌡️  Live Thermal Monitor": "monitor",
+            "🖥️  Live Monitor": "monitor",
             "🤖  ML Prediction & Twin": "predictor",
             "⚙️  Resource Allocator": "allocator",
             "📊  Scheduler Benchmark": "benchmark",
@@ -373,21 +373,18 @@ def render_sidebar():
         st.markdown('<hr style="margin:14px 0;border-color:rgba(97,120,145,0.3);">', unsafe_allow_html=True)
 
         # Refresh Controls
-        st.markdown("<p style='color:#9FB0C2;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;padding:0 4px;margin-bottom:6px;'>Telemetry Stream</p>", unsafe_allow_html=True)
-        auto_refresh = st.toggle("🔄 Continuous Polling (3s)", value=False, key="auto_refresh")
+        st.markdown("<p style='color:#9FB0C2;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;padding:0 4px;margin-bottom:6px;'>Settings</p>", unsafe_allow_html=True)
+        auto_refresh = st.toggle("🔄 Auto-Refresh (3s)", value=False, key="auto_refresh")
 
-        # System Telemetry Mini
+        # System Stats Mini
         st.markdown('<hr style="margin:14px 0;border-color:rgba(97,120,145,0.3);">', unsafe_allow_html=True)
-        st.markdown("<p style='color:#9FB0C2;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;padding:0 4px;margin-bottom:8px;'>Core Telemetry</p>", unsafe_allow_html=True)
+        st.markdown("<p style='color:#9FB0C2;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.12em;padding:0 4px;margin-bottom:8px;'>Quick Stats</p>", unsafe_allow_html=True)
         try:
             from core.monitor import get_full_snapshot
             snap = get_full_snapshot()
             cpu = snap["cpu"]["overall_percent"]
             ram = snap["ram"]["percent"]
             disk = snap["disk"]["percent"]
-            thermal = snap.get("thermal", {})
-            temp = thermal.get("package_temp_c", 42.0)
-            status_color = thermal.get("status_color", "#D5B893")
 
             def mini_bar(label, val, val_str, bar_color):
                 pct = min(100.0, max(0.0, val))
@@ -403,23 +400,22 @@ def render_sidebar():
 
             st.markdown(
                 mini_bar("CPU Load", cpu, f"{cpu:.1f}%", "#D5B893") +
-                mini_bar("Thermal (Pkg)", temp, f"{temp:.1f}°C", status_color) +
                 mini_bar("RAM Alloc", ram, f"{ram:.1f}%", "#617891") +
                 mini_bar("Disk Storage", disk, f"{disk:.1f}%", "#6F4D38"),
                 unsafe_allow_html=True
             )
         except Exception:
-            st.caption("Telemetry unavailable")
+            st.caption("Stats unavailable")
 
         st.markdown('<hr style="margin:14px 0;border-color:rgba(97,120,145,0.3);">', unsafe_allow_html=True)
         st.markdown(
             '<div style="color:#788A9E;font-size:0.67rem;text-align:center;line-height:1.5;">'
             '<span style="color:#D5B893;font-family:\'Playfair Display\',serif;font-size:0.75rem;letter-spacing:0.02em;">'
-            'Thermal-Aware Digital Twin</span><br>'
-            'Predictive Multi-Core Research System<br>'
+            'AI Digital Twin Framework</span><br>'
+            'MCA Research Project<br>'
             '<span style="color:rgba(97,120,145,0.5);">──────────────</span><br>'
             '<span style="font-family:\'JetBrains Mono\',monospace;color:#9FB0C2;">'
-            '#25344F · #617891 · #D5B893 · #6F4D38 · #632024</span></div>',
+            'Python · scikit-learn · psutil · Streamlit · Plotly</span></div>',
             unsafe_allow_html=True
         )
 
