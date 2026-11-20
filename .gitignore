@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.DS_Store
+.venv/
+venv/
+ENV/
+env/
+.env
+*.log
+.agents/
+.streamlit/credentials.toml
